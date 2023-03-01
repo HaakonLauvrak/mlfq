@@ -114,8 +114,9 @@ struct proc
     int xstate;           // Exit status to be returned to parent's wait
     int pid;              // Process ID
     int tics;             // Number of tics run
-    struct proc *prev;    // Previous process in the queue
-    struct proc *next;    // Next process in the queue
+    int newProc;
+    struct proc *prev; // Previous process in the queue
+    struct proc *next; // Next process in the queue
 
     // wait_lock must be held when using this:
     struct proc *parent; // Parent process

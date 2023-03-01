@@ -213,6 +213,7 @@ found:
     p->pid = allocpid();
     p->state = USED;
     p->tics = 0;
+    p->newProc = 0;
 
     // Allocate a trapframe page.
     if ((p->trapframe = (struct trapframe *)kalloc()) == 0)
@@ -787,73 +788,94 @@ void mlfq_scheduler(void)
     q1->tail = 0;
     q2->head = 0;
     q2->tail = 0;
-    struct proc *p0, *p1;
+    struct proc *p0, *p1, *p2, *p3;
     // Initialize the queues
 
     struct cpu *c = mycpu();
     c->proc = 0;
+    for (p0 = proc; p0 < &proc[NPROC]; p0++)
+    {
+        acquire(&p0->lock);
+        if ((p0->newProc == 0))
+        {
+            p0->newProc = 1;
+            enqueue(q0, p0);
+        }
+        release(&p0->lock);
+    }
 
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
+    for (;;)
+    {
 
-    for (p0 = proc; p0 < &proc[NPROC]; p0++)
-    {
-        enqueue(q0, p0);
-    }
+        while ((q0->tail != 0) && (q0->head != 0))
+        {
+            p1 = dequeue(q0);
+            acquire(&p1->lock);
+            enqueue(q1, p1);
+            if (p1->state == RUNNABLE)
+            {
 
-    while (q0->head != 0)
-    {
-        p1 = dequeue(q0);
-        acquire(&p1->lock);
-        enqueue(q1, p1);
-        if (p1->state == RUNNABLE)
-        {
+                p1->state = RUNNING;
+                // p1->tics += 4;
+                c->proc = p1;
+                swtch(&c->context, &p1->context);
+                c->proc = 0;
+                p1->tics += 4;
+            }
 
-            p1->state = RUNNING;
-            // p1->tics += 4;
-            c->proc = p1;
-            swtch(&c->context, &p1->context);
-            c->proc = 0;
+            release(&p1->lock);
         }
-        release(&p1->lock);
-    }
-    while ((q0->head == 0) && (q1->head != 0))
-    {
-        p1 = dequeue(q1);
-        acquire(&p1->lock);
-        enqueue(q2, p1);
-        if (p1->state == RUNNABLE)
+        while ((q0->tail == 0) && (q1->tail != 0) && (q0->head == 0) && (q1->head != 0))
         {
-            p1->state = RUNNING;
-            c->proc = p1;
-            // p1->tics += 4;
-            swtch(&c->context, &p1->context);
-            c->proc = 0;
+            p2 = dequeue(q1);
+            acquire(&p2->lock);
+            enqueue(q2, p2);
+            if (p2->state == RUNNABLE)
+            {
+                p2->state = RUNNING;
+                c->proc = p2;
+                // p1->tics += 4;
+                swtch(&c->context, &p2->context);
+                c->proc = 0;
+                p2->tics += 4;
+            }
+            release(&p2->lock);
         }
-        release(&p1->lock);
-    }
-    while ((q0->head == 0) && (q1->head == 0) && (q2->head != 0))
-    {
-        p1 = dequeue(q2);
-        enqueue(q0, p1);
-        acquire(&p1->lock);
-        // if (p1->tics > 16)
-        // {
-        //     enqueue(q0, p1);
-        // }
-        // else
-        // {
-        //     enqueue(q2, p1);
-        // }
-        if (p1->state == RUNNABLE)
+        while ((q0->tail == 0) && (q1->tail == 0) && (q2->tail != 0) && (q0->head == 0) && (q1->head == 0) && (q2->head != 0))
         {
-            p1->state = RUNNING;
-            // p1->tics += 4;
-            c->proc = p1;
-            swtch(&c->context, &p1->context);
-            c->proc = 0;
+            p3 = dequeue(q2);
+            if (p3->tics >= 12)
+            {
+                acquire(&p3->lock);
+                if (p3->state == RUNNABLE)
+                {
+                    p3->state = RUNNING;
+                    c->proc = p3;
+                    p3->tics = 0;
+                    swtch(&c->context, &p3->context);
+                    c->proc = 0;
+                }
+                release(&p3->lock);
+                enqueue(q0, p3);
+                break;
+            }
+            else
+            {
+                enqueue(q2, p3);
+                acquire(&p3->lock);
+                if (p3->state == RUNNABLE)
+                {
+                    p3->state = RUNNING;
+                    c->proc = p3;
+                    p3->tics += 4;
+                    swtch(&c->context, &p3->context);
+                    c->proc = 0;
+                }
+                release(&p3->lock);
+            }
         }
-        release(&p1->lock);
     }
 }
 

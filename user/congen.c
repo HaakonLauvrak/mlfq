@@ -4,7 +4,7 @@
 #include "kernel/stat.h"
 #include "user/user.h"
 
-#define N 100
+#define N 5
 
 void print(const char *s)
 {
