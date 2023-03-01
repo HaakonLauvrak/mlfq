@@ -835,7 +835,7 @@ void mlfq_scheduler(void)
     while ((q0->head == 0) && (q1->head == 0) && (q2->head != 0))
     {
         p1 = dequeue(q2);
-        enqueue(q2, p1);
+        enqueue(q0, p1);
         acquire(&p1->lock);
         // if (p1->tics > 16)
         // {

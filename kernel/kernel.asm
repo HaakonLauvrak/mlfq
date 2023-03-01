@@ -4793,9 +4793,9 @@ void forkret(void)
     800022e4:	00000097          	auipc	ra,0x0
     800022e8:	e32080e7          	jalr	-462(ra) # 80002116 <dequeue>
     800022ec:	84aa                	mv	s1,a0
-        enqueue(q2, p1);
+        enqueue(q0, p1);
     800022ee:	85aa                	mv	a1,a0
-    800022f0:	8556                	mv	a0,s5
+    800022f0:	854a                	mv	a0,s2
     800022f2:	00000097          	auipc	ra,0x0
     800022f6:	dfa080e7          	jalr	-518(ra) # 800020ec <enqueue>
         acquire(&p1->lock);
